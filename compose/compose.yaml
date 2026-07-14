@@ -1,16 +1,23 @@
 services:
   palworld-server:
+    container_name: palworld-server
+
     # https://github.com/pocketpairjp/palworld-dedicated-server-docker/pkgs/container/palserver
     image: ghcr.io/pocketpairjp/palserver:v1.0.0.100427
+    restart: unless-stopped
+
+    environment:
+      TZ: Asia/Taipei
 
     entrypoint: /pal/helper.sh
 
     # https://tech.palworldgame.com/settings-and-operation/arguments
+    # Palworld Server Guide notes that on v1.0.0 or later, leaving the
+    # multithread-related startup parameters unset may improve performance.
     command:
       - -port=8211
-      - -useperfthreads
-      - -NoAsyncLoadingThread
-      - -UseMultithreadForDS
+      - -players=32
+      - -logformat=text
 
     ports:
       - "8211:8211/udp"
@@ -18,3 +25,14 @@ services:
     volumes:
       - ./helper.sh:/pal/helper.sh:ro
       - ./Saved:/pal/Package/Pal/Saved
+
+    stop_grace_period: 120s
+
+    deploy:
+      resources:
+        reservations:
+          cpus: "4"
+          memory: 8G
+        limits:
+          cpus: "8"
+          memory: 32G
