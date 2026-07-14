@@ -1,6 +1,6 @@
 # Palworld Dedicated Server Docker
 
-[ENGLISH](README.md) | [日本語](README-JA.md)
+[ENGLISH](README.md) | [日本語](README-JA.md) | [繁體中文](README-ZH-TW.md)
 
 We provide the Docker image and sample Docker Compose files for the official dedicated server, enabling multiplayer for [Palworld](https://www.pocketpair.jp/palworld?lang=en). Please also check the Palworld server guide.
 
