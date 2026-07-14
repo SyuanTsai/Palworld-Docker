@@ -6,6 +6,12 @@ services:
     image: ghcr.io/pocketpairjp/palserver:v1.0.0.100427
     restart: unless-stopped
 
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://host.docker.internal:12201"
+        tag: "Palworld-Server"
+
     environment:
       TZ: Asia/Taipei
 
