@@ -24,7 +24,7 @@ services:
 
     volumes:
       - ./helper.sh:/pal/helper.sh:ro
-      - ./Saved:/pal/Package/Pal/Saved
+      - ../Data:/pal/Package/Pal/Saved
 
     stop_grace_period: 120s
 
