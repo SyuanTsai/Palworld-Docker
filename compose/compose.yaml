@@ -29,7 +29,7 @@ services:
       - "8211:8211/udp"
 
     volumes:
-      - ./helper.sh:/pal/helper.sh:ro
+      - ../Data/helper.sh:/pal/helper.sh:ro
       - ../Data:/pal/Package/Pal/Saved
 
     stop_grace_period: 120s
