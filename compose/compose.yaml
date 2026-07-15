@@ -1,3 +1,5 @@
+name: palworld-compose
+
 services:
   palworld-server:
     container_name: Palworld-Server
@@ -42,3 +44,21 @@ services:
         limits:
           cpus: "8"
           memory: 32G
+
+  palworld-manager:
+    build:
+      context: https://github.com/io-software-ai/palserver-gui.git#main
+      dockerfile: packages/agent/Dockerfile
+    image: palserver/agent:latest
+    container_name: Palworld-Manager
+    restart: unless-stopped
+
+    ports:
+      - "10000:8250"
+
+    environment:
+      PALSERVER_DATA_DIR: /var/lib/palserver
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../GuiData:/var/lib/palserver
