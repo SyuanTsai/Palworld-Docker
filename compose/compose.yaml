@@ -54,9 +54,8 @@ services:
 
   palworld-manager:
     build:
-      context: https://github.com/io-software-ai/palserver-gui.git#main
-      dockerfile: packages/agent/Dockerfile
-    image: palserver/agent:latest
+      context: ../manager-agent
+    image: palserver/agent-internal-rest:latest
     container_name: Palworld-Manager
     restart: unless-stopped
     security_opt:
