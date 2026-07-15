@@ -7,6 +7,8 @@ services:
     # https://github.com/pocketpairjp/palworld-dedicated-server-docker/pkgs/container/palserver
     image: ghcr.io/pocketpairjp/palserver:latest
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
     logging:
       driver: gelf
@@ -52,13 +54,29 @@ services:
     image: palserver/agent:latest
     container_name: Palworld-Manager
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
     ports:
-      - "10000:8250"
+      - "127.0.0.1:10000:8250"
 
     environment:
-      PALSERVER_DATA_DIR: /var/lib/palserver
+      # The agent passes instance paths to Docker Desktop through docker.sock.
+      # This path therefore must be identical inside the agent and Docker's VM.
+      PALSERVER_DATA_DIR: /run/desktop/mnt/host/e/Server/Palworld/Data/GuiData
+      PALSERVER_REQUIRE_TOKEN: "1"
+      PALSERVER_NO_OPEN: "1"
+      PALSERVER_TELEMETRY: "0"
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../GuiData:/var/lib/palserver
+      - E:/Server/Palworld/Data/GuiData:/run/desktop/mnt/host/e/Server/Palworld/Data/GuiData
+
+  # Build target only. The Manager uses this image when it creates a new
+  # Docker-backed Palworld instance; it is never started by Compose.
+  palworld-managed-image:
+    profiles:
+      - build-only
+    build:
+      context: ../manager-server
+    image: palserver/pocketpair-manager:latest
