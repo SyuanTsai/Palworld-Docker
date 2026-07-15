@@ -3,7 +3,7 @@ services:
     container_name: Palworld-Server
 
     # https://github.com/pocketpairjp/palworld-dedicated-server-docker/pkgs/container/palserver
-    image: ghcr.io/pocketpairjp/palserver:v1.0.0.100427
+    image: ghcr.io/pocketpairjp/palserver:latest
     restart: unless-stopped
 
     logging:
