@@ -2,13 +2,18 @@ name: palworld-compose
 
 services:
   palworld-server:
+    profiles:
+      - bootstrap
     container_name: Palworld-Server
 
-    # https://github.com/pocketpairjp/palworld-dedicated-server-docker/pkgs/container/palserver
-    image: ghcr.io/pocketpairjp/palserver:latest
+    # Pocketpair's official image with the path adapter required by palserver-gui.
+    image: palserver/pocketpair-manager:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+
+    labels:
+      app.palserver.instance: palworld-main
 
     logging:
       driver: gelf
@@ -19,22 +24,22 @@ services:
     environment:
       TZ: Asia/Taipei
 
-    entrypoint: /pal/helper.sh
-
     # https://tech.palworldgame.com/settings-and-operation/arguments
     # Palworld Server Guide notes that on v1.0.0 or later, leaving the
     # multithread-related startup parameters unset may improve performance.
     command:
       - -port=8211
+      - -queryport=27015
       - -players=32
       - -logformat=text
 
     ports:
       - "8211:8211/udp"
+      - "27015:27015/udp"
 
     volumes:
-      - ../Data/helper.sh:/pal/helper.sh:ro
-      - ../Data:/pal/Package/Pal/Saved
+      - ../Data/GuiData/instances/palworld-main/saved:/data/saved
+      - ../Data/GuiData/instances/palworld-main/config:/data/config:ro
 
     stop_grace_period: 120s
 
