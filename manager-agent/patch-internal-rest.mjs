@@ -7,7 +7,10 @@ let dockerSource = fs.readFileSync(dockerFile, "utf8");
 const dockerMarker = "/** Resolve the ephemeral host port Docker assigned for the REST API (8212/tcp). */";
 
 if (!dockerSource.includes("export async function restContainerAddress")) {
-  if (!dockerSource.includes(dockerMarker)) {
+  const insertionMarker = dockerSource.includes(dockerMarker)
+    ? dockerMarker
+    : "export async function getStatus(rec) {";
+  if (!dockerSource.includes(insertionMarker)) {
     throw new Error("Unable to locate the Docker REST helper insertion point");
   }
 
@@ -22,11 +25,16 @@ export async function restContainerAddress(rec) {
 }
 `;
 
-  dockerSource = dockerSource.replace(dockerMarker, helper + dockerMarker);
+  dockerSource = dockerSource.replace(insertionMarker, helper + insertionMarker);
   fs.writeFileSync(dockerFile, dockerSource);
 }
 
 let restSource = fs.readFileSync(restFile, "utf8");
+const dockerImport = 'import * as dockerOps from "./docker.js";';
+if (!restSource.includes(dockerImport)) {
+  restSource = `${dockerImport}\n${restSource}`;
+}
+
 const oldDockerBlock = `    if (rec.backend === "docker") {
         const hostPort = await dockerOps.restHostPort(rec);
         if (hostPort)
@@ -42,15 +50,26 @@ const newDockerBlock = `    if (rec.backend === "docker") {
             return \`http://127.0.0.1:\${hostPort}/v1/api\`;
         return \`http://127.0.0.1:\${rec.settings.RESTAPIPort}/v1/api\`;
     }`;
+const directRestBlock = `    return \`http://127.0.0.1:\${rec.settings.RESTAPIPort}/v1/api\`;
+}`;
+const newDirectRestBlock = `    if (rec.backend === "docker") {
+        const address = await dockerOps.restContainerAddress(rec);
+        if (address)
+            return \`http://\${address}:\${rec.settings.RESTAPIPort}/v1/api\`;
+    }
+    return \`http://127.0.0.1:\${rec.settings.RESTAPIPort}/v1/api\`;
+}`;
 
 if (!restSource.includes("restContainerAddress(rec)")) {
-  if (!restSource.includes(oldDockerBlock)) {
+  if (restSource.includes(oldDockerBlock)) {
+    restSource = restSource.replace(oldDockerBlock, newDockerBlock);
+  } else if (restSource.includes(directRestBlock)) {
+    restSource = restSource.replace(directRestBlock, newDirectRestBlock);
+  } else {
     throw new Error("Unable to locate the Docker REST URL block");
   }
-
-  restSource = restSource.replace(oldDockerBlock, newDockerBlock);
-  fs.writeFileSync(restFile, restSource);
 }
+fs.writeFileSync(restFile, restSource);
 
 const routesFile = "/app/packages/agent/dist/routes.js";
 let routesSource = fs.readFileSync(routesFile, "utf8");
@@ -92,14 +111,15 @@ if (!webAsset) {
 
 const webFile = `${assetsDir}/${webAsset}`;
 let webSource = fs.readFileSync(webFile, "utf8");
-const oldRawPaths = 'const E2=["Pal/Saved/Config/WindowsServer/PalWorldSettings.ini","Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"];';
-const newRawPaths = 'const E2=["Config/LinuxServer/PalWorldSettings.ini","Pal/Saved/Config/WindowsServer/PalWorldSettings.ini","Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"];';
+const rawPathsPattern = /const ([A-Za-z_$][\w$]*)=\["Pal\/Saved\/Config\/WindowsServer\/PalWorldSettings\.ini","Pal\/Saved\/Config\/LinuxServer\/PalWorldSettings\.ini"\];/;
 
-if (!webSource.includes('const E2=["Config/LinuxServer/PalWorldSettings.ini"')) {
-  if (!webSource.includes(oldRawPaths)) {
+if (!webSource.includes('["Config/LinuxServer/PalWorldSettings.ini","Pal/Saved/Config/WindowsServer/PalWorldSettings.ini","Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"]')) {
+  const match = webSource.match(rawPathsPattern);
+  if (!match) {
     throw new Error("Unable to locate the raw settings paths in the web asset");
   }
-  webSource = webSource.replace(oldRawPaths, newRawPaths);
+  const rawPathsConst = match[1];
+  webSource = webSource.replace(rawPathsPattern, `const ${rawPathsConst}=["Config/LinuxServer/PalWorldSettings.ini","Pal/Saved/Config/WindowsServer/PalWorldSettings.ini","Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"];`);
   fs.writeFileSync(webFile, webSource);
 }
 
