@@ -67,6 +67,7 @@ services:
     environment:
       # The agent passes instance paths to Docker Desktop through docker.sock.
       # This path therefore must be identical inside the agent and Docker's VM.
+      TZ: Asia/Taipei
       PALSERVER_DATA_DIR: /run/desktop/mnt/host/e/Server/Palworld/Data/GuiData
       PALSERVER_REQUIRE_TOKEN: "1"
       PALSERVER_NO_OPEN: "1"

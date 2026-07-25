@@ -1,4 +1,3 @@
-﻿Data/Config/LinuxServer/PalWorldSettings.ini
-Data/SaveGames
-Data/Config/CrashReportClient
-Data/GuiData/
+﻿Backups
+Data/GuiData
+Data/Config/LinuxServer/PalWorldSettings.ini
