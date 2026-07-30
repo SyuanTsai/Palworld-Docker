@@ -38,6 +38,20 @@
 - 全程不連網、不讀取 `Data/GuiData/token`，正式紀錄與快取都不保存玩家、公會、GUID、座標、帕魯暱稱或權杖資料。
 - 如需忽略快取重新盤點，可執行 `.\update-base-records.cmd -ForceRefresh`。
 
+## 遠征隊伍更新
+
+先將 `expedition-player.example.json` 複製為 Git 會忽略的
+`expedition-player.local.json`，並填入目標玩家名稱與玩家 ID；之後在儲存庫根目錄執行：
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\update-expedition-records.ps1
+```
+
+- 也可用較短的 `.\update-expedition-records.cmd` 執行同一支 PowerShell 腳本。
+- 指令只解析目前 `Level.sav` 的玩家與帕魯角色資料，篩選該玩家名下、暱稱以「遠征」開頭的帕魯。
+- 玩家設定只保存在 `expedition-player.local.json`，正式遠征表不會包含玩家名稱、玩家 ID 或個體 GUID。
+- `update-expedition-records.ps1`、摘要產生器與範例設定可提交 Git；本機玩家設定已由 `.gitignore` 排除。
+
 ## 維護規則
 
 1. 共用公式或培育結論只在共用子資料集維護一次。
