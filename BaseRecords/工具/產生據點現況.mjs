@@ -38,7 +38,7 @@ const facilityDefinitions = [
   ["CrystalPit", "六稜晶礦場", "採集與加工"],
   ["StonePit", "採石場", "採集與加工"],
   ["QuartzPit", "純水晶礦場", "採集與加工"],
-  ["SkyIslandOrePit", "索拉礦場", "採集與加工"],
+  ["SkyIslandOrePit", "烈陽金屬採礦場", "採集與加工"],
   ["CoalPit", "煤礦場", "採集與加工"],
   ["SulfurPit", "硫磺礦場", "採集與加工"],
   ["CopperPit_2", "金屬礦場 II", "採集與加工"],
