@@ -52,6 +52,12 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\update-expedit
 - 玩家設定只保存在 `expedition-player.local.json`，正式遠征表不會包含玩家名稱、玩家 ID 或個體 GUID。
 - `update-expedition-records.ps1`、摘要產生器與範例設定可提交 Git；本機玩家設定已由 `.gitignore` 排除。
 
+## 玩家個人資料查詢
+
+- 查詢「我有幾隻」或玩家個人帕魯時，必須先讀取 Git 忽略的 `expedition-player.local.json`，以玩家名稱與 `PlayerUId` 唯一確認目標玩家；不得把全伺服器、公會或其他玩家的帕魯合併計算。
+- 一般帕魯以 `OwnerPlayerUId` 等於本機設定的 `PlayerUId` 為準。若帕魯位於會清空現任擁有者的共享或特殊容器，只能在 `OwnerPlayerUId` 為空且 `OldOwnerPlayerUIds` 含目標玩家時納入；可取得容器關聯時還需交叉驗證。
+- 查詢輸出與正式紀錄不得包含玩家名稱、玩家 UID、其他玩家資料、帕魯個體 GUID 或原始存檔內容；玩家身分只保存在本機忽略檔，不得寫入 `AGENTS.md` 或共用資料。
+
 ## 維護規則
 
 1. 共用公式或培育結論只在共用子資料集維護一次。
