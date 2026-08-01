@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [int]$WorkerLimit = 30,
-    [switch]$ForceRefresh
+    [switch]$ForceRefresh,
+    [string]$PlayerConfigPath
 )
 
 # Offline-only: do not add network calls or persist the decoded Level.sav JSON.
@@ -12,6 +13,9 @@ $ErrorActionPreference = 'Stop'
 
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $repositoryRoot = $PSScriptRoot
+if (-not $PlayerConfigPath) {
+    $PlayerConfigPath = Join-Path $repositoryRoot 'expedition-player.local.json'
+}
 $guiDataRoot = Join-Path $repositoryRoot 'Data\GuiData'
 $savedRoot = Join-Path $guiDataRoot 'instances\palworld-main\saved'
 $saveGamesRoot = Join-Path $savedRoot 'SaveGames\0'
@@ -29,6 +33,7 @@ $managerContainer = 'Palworld-Manager'
 $serverParserPath = '/tmp/palworld-base-records-palsav'
 $managerGeneratorPath = '/tmp/palworld-base-records-generator.mjs'
 $managerPalIndexPath = '/tmp/palworld-base-records-pal-index.csv'
+$managerPlayerConfigPath = '/tmp/palworld-base-records-player.local.json'
 $temporaryJsonPath = $null
 
 function Assert-File {
@@ -86,6 +91,19 @@ Assert-File -LiteralPath $parserPath
 Assert-File -LiteralPath $checksumPath
 Assert-File -LiteralPath $generatorPath
 Assert-File -LiteralPath $palIndexPath
+Assert-File -LiteralPath $PlayerConfigPath
+
+try {
+    $playerConfig = Get-Content -Raw -LiteralPath $PlayerConfigPath -Encoding UTF8 |
+        ConvertFrom-Json
+}
+catch {
+    throw "玩家設定檔不是有效的 JSON：$PlayerConfigPath"
+}
+if (-not $playerConfig.PlayerName -or -not $playerConfig.PlayerUId) {
+    throw '玩家設定檔必須包含 PlayerName 與 PlayerUId。'
+}
+$playerName = $playerConfig.PlayerName.ToString().Trim()
 
 $checksumLine = Get-Content -LiteralPath $checksumPath |
     Where-Object { $_ -match '\spalsav-linux-x64$' } |
@@ -107,6 +125,7 @@ if (-not $levelSave) {
 }
 
 $sourceHash = (Get-FileHash -LiteralPath $levelSave.FullName -Algorithm SHA256).Hash
+$playerConfigHash = (Get-FileHash -LiteralPath $PlayerConfigPath -Algorithm SHA256).Hash
 $metadata = $null
 if (Test-Path -LiteralPath $cacheMetadataPath -PathType Leaf) {
     try {
@@ -120,8 +139,9 @@ if (Test-Path -LiteralPath $cacheMetadataPath -PathType Leaf) {
 
 $cacheHit = -not $ForceRefresh.IsPresent -and
     $metadata -and
-    $metadata.Schema -eq 1 -and
+    $metadata.Schema -eq 2 -and
     $metadata.SourceSha256 -eq $sourceHash -and
+    $metadata.PlayerConfigSha256 -eq $playerConfigHash -and
     $metadata.WorkerLimit -eq $WorkerLimit -and
     (Test-Path -LiteralPath $cacheMarkdownPath -PathType Leaf)
 
@@ -185,6 +205,7 @@ try {
 
     $null = Invoke-Docker -Arguments @('cp', $generatorPath, "${managerContainer}:$managerGeneratorPath") -Step '複製本機摘要產生器'
     $null = Invoke-Docker -Arguments @('cp', $palIndexPath, "${managerContainer}:$managerPalIndexPath") -Step '複製帕魯名稱索引'
+    $null = Invoke-Docker -Arguments @('cp', $PlayerConfigPath, "${managerContainer}:$managerPlayerConfigPath") -Step '複製本機玩家設定'
 
     $taipeiZone = [System.TimeZoneInfo]::FindSystemTimeZoneById('Taipei Standard Time')
     $snapshotLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($levelSave.LastWriteTimeUtc, $taipeiZone)
@@ -195,6 +216,7 @@ try {
         'node', $managerGeneratorPath,
         $managerTemporaryPath,
         $managerPalIndexPath,
+        $managerPlayerConfigPath,
         $managerCacheMarkdownPath,
         $snapshotText,
         $WorkerLimit.ToString()
@@ -206,6 +228,7 @@ try {
         '(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'
         '(?i)\b(PlayerUId|OwnerPlayerUId|GuildName|group_id|build_player_uid|token)\b'
         '\b\d{15,20}\b'
+        [Regex]::Escape($playerName)
     )
     foreach ($pattern in $forbiddenPatterns) {
         if ($privacyText -match $pattern) {
@@ -215,14 +238,16 @@ try {
 
     Copy-Item -LiteralPath $cacheMarkdownPath -Destination $targetPath -Force
     $metadataObject = [ordered]@{
-        Schema = 1
+        Schema = 2
         SourceSha256 = $sourceHash
+        PlayerConfigSha256 = $playerConfigHash
         WorkerLimit = $WorkerLimit
         SnapshotTime = $snapshotText
     }
     Write-Utf8NoBom -LiteralPath $cacheMetadataPath -Content ($metadataObject | ConvertTo-Json)
 }
 finally {
+    $null = & docker exec $managerContainer rm -f $managerPlayerConfigPath 2>$null
     if ($temporaryJsonPath -and (Test-Path -LiteralPath $temporaryJsonPath -PathType Leaf)) {
         $temporaryFull = [System.IO.Path]::GetFullPath($temporaryJsonPath)
         if ($temporaryFull.StartsWith($savedRootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -232,5 +257,5 @@ finally {
 }
 
 $stopwatch.Stop()
-Write-Host ("01～05 據點資料已更新：{0}" -f $targetPath)
+Write-Host ("所屬公會據點資料已更新：{0}" -f $targetPath)
 Write-Host ("完成時間：{0:N2} 秒；快取中只保留去識別化 Markdown 與本機雜湊。" -f $stopwatch.Elapsed.TotalSeconds)

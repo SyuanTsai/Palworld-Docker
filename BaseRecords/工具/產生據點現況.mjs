@@ -1,18 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const [sourcePath, palIndexPath, outputPath, snapshotTime, workerLimitText] =
+const [
+  sourcePath,
+  palIndexPath,
+  playerConfigPath,
+  outputPath,
+  snapshotTime,
+  workerLimitText,
+] =
   process.argv.slice(2);
 
 if (
   !sourcePath ||
   !palIndexPath ||
+  !playerConfigPath ||
   !outputPath ||
   !snapshotTime ||
   !workerLimitText
 ) {
   throw new Error(
-    "Usage: node 產生據點現況.mjs <Level.json> <帕魯索引.csv> <output.md> <snapshot-time> <worker-limit>",
+    "Usage: node 產生據點現況.mjs <Level.json> <帕魯索引.csv> <player-config.json> <output.md> <snapshot-time> <worker-limit>",
   );
 }
 
@@ -282,17 +290,75 @@ function likelyFunctionalId(id) {
 }
 
 const palNames = loadPalNames(palIndexPath);
+const playerConfig = JSON.parse(fs.readFileSync(playerConfigPath, "utf8"));
+const playerName = String(playerConfig.PlayerName ?? "").trim();
+const playerUid = String(playerConfig.PlayerUId ?? "").trim().toLowerCase();
+if (!playerName || !playerUid || playerUid === ZERO_GUID) {
+  throw new Error("player config must contain PlayerName and a valid PlayerUId");
+}
 const parsed = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
 const world = parsed?.properties?.worldSaveData?.value;
 if (!world) throw new Error("worldSaveData was not found");
 
-const bases = arrayValue(world.BaseCampSaveData);
+const allBases = arrayValue(world.BaseCampSaveData);
 const mapObjects = arrayValue(world.MapObjectSaveData);
 const works = arrayValue(world.WorkSaveData);
 const containers = arrayValue(world.CharacterContainerSaveData);
 const characterEntries = arrayValue(world.CharacterSaveParameterMap);
 
-if (!bases.length) throw new Error("no base camp data was found");
+if (!allBases.length) throw new Error("no base camp data was found");
+const matchingPlayers = characterEntries.filter((entry) => {
+  const parameter =
+    entry.value?.RawData?.value?.object?.SaveParameter?.value;
+  return (
+    scalar(parameter?.IsPlayer) === true &&
+    String(scalar(parameter?.NickName) ?? "") === playerName &&
+    guid(entry.key?.PlayerUId) === playerUid
+  );
+});
+if (matchingPlayers.length !== 1) {
+  throw new Error(
+    `expected exactly one configured player, found ${matchingPlayers.length}`,
+  );
+}
+
+const allBaseIds = new Set(
+  allBases
+    .map((entry) => guid(entry.value?.RawData?.value?.id || entry.key))
+    .filter(Boolean),
+);
+const groupByBaseId = new Map(
+  allBases.map((entry) => {
+    const raw = entry.value?.RawData?.value;
+    return [
+      guid(raw?.id || entry.key),
+      guid(raw?.group_id_belong_to),
+    ];
+  }),
+);
+const personallyBuiltBaseIds = new Set();
+for (const object of mapObjects) {
+  const raw = object.Model?.value?.RawData?.value;
+  if (guid(raw?.build_player_uid) !== playerUid) continue;
+  const baseId = guid(raw?.base_camp_id_belong_to);
+  if (baseId && allBaseIds.has(baseId)) personallyBuiltBaseIds.add(baseId);
+}
+const targetGuildIds = new Set(
+  [...personallyBuiltBaseIds]
+    .map((baseId) => groupByBaseId.get(baseId))
+    .filter((groupId) => groupId && groupId !== ZERO_GUID),
+);
+if (targetGuildIds.size !== 1) {
+  throw new Error(
+    `expected exactly one guild inferred from the configured player's buildings, found ${targetGuildIds.size}`,
+  );
+}
+const [targetGuildId] = targetGuildIds;
+const bases = allBases.filter((entry) => {
+  const raw = entry.value?.RawData?.value;
+  return guid(raw?.group_id_belong_to) === targetGuildId;
+});
+if (!bases.length) throw new Error("the configured player's guild has no bases");
 
 const palsByInstance = new Map();
 for (const entry of characterEntries) {
@@ -401,8 +467,9 @@ const baseSnapshots = bases.map((entry, index) => {
   };
 });
 
+const baseRange = `01～${String(baseSnapshots.length).padStart(2, "0")}`;
 const lines = [
-  "# 01～05 據點存檔現況（自動產生）",
+  `# ${baseRange} 據點存檔現況（自動產生）`,
   "",
   `- 存檔快照時間：${snapshotTime}（Asia/Taipei）`,
   "- 更新方式：執行儲存庫根目錄的 `update-base-records.cmd`；本檔請勿手動編輯。",
