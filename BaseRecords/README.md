@@ -34,14 +34,14 @@
 在儲存庫根目錄執行：
 
 ```powershell
-.\update-base-records.cmd
+.\Commands\update-base-records.cmd
 ```
 
 - 存檔沒有變更時，指令會核對本機 SHA-256 後使用去識別化快取，目標為 5 秒內完成。
 - 存檔有變更時，指令會在本機 Docker 重新解析；目前 68 MB 存檔的完整冷更新約需 10～15 秒，完成後的再次執行會回到 5 秒內。
 - 指令會使用 Git 忽略的 `expedition-player.local.json` 辨識目標玩家，以其親建設施所屬的唯一公會篩選據點；不會把伺服器上其他公會的據點寫入正式紀錄。
 - 全程不連網、不讀取 `Data/GuiData/token`，正式紀錄與快取都不保存玩家、公會、GUID、座標、帕魯暱稱或權杖資料。
-- 如需忽略快取重新盤點，可執行 `.\update-base-records.cmd -ForceRefresh`。
+- 如需忽略快取重新盤點，可執行 `.\Commands\update-base-records.cmd -ForceRefresh`。
 
 ## 遠征隊伍更新
 
@@ -52,7 +52,7 @@
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\update-expedition-records.ps1
 ```
 
-- 也可用較短的 `.\update-expedition-records.cmd` 執行同一支 PowerShell 腳本。
+- 也可用較短的 `.\Commands\update-expedition-records.cmd` 執行同一支 PowerShell 腳本。
 - 指令只解析目前 `Level.sav` 的玩家與帕魯角色資料，篩選該玩家名下、暱稱以「遠征」開頭的帕魯。
 - 玩家設定只保存在 `expedition-player.local.json`，正式遠征表不會包含玩家名稱、玩家 ID 或個體 GUID。
 - `update-expedition-records.ps1`、摘要產生器與範例設定可提交 Git；本機玩家設定已由 `.gitignore` 排除。

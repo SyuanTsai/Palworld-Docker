@@ -6,7 +6,7 @@ param(
 )
 
 # Offline-only: do not add network calls or persist the decoded Level.sav JSON.
-# Use update-base-records.cmd to bypass the local PowerShell execution policy.
+# Use Commands\update-base-records.cmd to bypass the local PowerShell execution policy.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
